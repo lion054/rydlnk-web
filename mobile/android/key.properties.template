@@ -1,0 +1,14 @@
+# Copy this to android/key.properties and fill in YOUR values.
+# NEVER commit key.properties or the .jks file — losing them means you can
+# never update the app on Google Play again.
+#
+# 1. Generate an upload keystore (once):
+#    keytool -genkey -v -keystore ~/rydlnk-upload.jks -keyalg RSA \
+#            -keysize 2048 -validity 10000 -alias upload
+#    (answer the prompts; remember the passwords)
+#
+# 2. Fill these in:
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=upload
+storeFile=/absolute/path/to/rydlnk-upload.jks
