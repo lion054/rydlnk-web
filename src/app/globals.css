@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #07231a;
+  --color-forest: #0e3a2b;
+  --color-forest2: #14503b;
+  --color-forest3: #1a6247;
+
+  /* `signal` carries white text on buttons and the CTA band, so it has to clear
+     4.5:1 against white — the old #1fb552 measured 2.70:1 and only became
+     legible on hover. The original bright green is kept as `signalbright` for
+     seat pips, status dots and the live indicator, which never carry text. */
+  --color-signal: #12833f;
+  --color-signaldim: #0d6330;
+  --color-signalbright: #1fb552;
+
+  --color-amber: #ffc531;
+  /* Eyebrows on white were #c98a00 at 2.95:1. */
+  --color-amberdim: #8a5e00;
+
+  --color-paper: #edf1ee;
+  --color-shell: #f7f9f7;
+
+  /* `line` is decorative separation. Anything that is the visible boundary of a
+     control — input, ghost button — uses `linestrong`, which clears the 3:1
+     non-text contrast requirement. */
+  --color-line: #dde5e0;
+  --color-linestrong: #748981;
+  --color-linedark: #1e4c3a;
+
+  --color-muted: #5c7268;
+  --color-muteddark: #8fb0a2;
+  --color-railmuted: #7e9c8d;
+  --color-flag: #a03d1b;
+
+  /* The *-loaded variables are injected by next/font in the root layout, which
+     self-hosts the files and metric-matches the fallback. */
+  --font-display: var(--font-display-loaded), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-body-loaded), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-loaded), ui-monospace, monospace;
+
+  /* Four steps, replacing thirteen ad-hoc `rounded-[Npx]` values. */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-card: 14px;
+  --radius-lg: 18px;
+
+  /* Type scale. Previously every size was an arbitrary `text-[0.74rem]`-style
+     value — 20+ of them, which is why sibling components never quite aligned.
+     Seven steps, 1.125 ratio around a 16px base. */
+  --text-2xs: 0.6875rem;   /* 11px — micro labels, table headers */
+  --text-2xs--line-height: 1.45;
+  --text-xs: 0.75rem;      /* 12px — captions, metadata */
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.8125rem;    /* 13px — dense table cells */
+  --text-sm--line-height: 1.5;
+  --text-base: 0.9375rem;  /* 15px — UI default */
+  --text-base--line-height: 1.6;
+  --text-md: 1.0625rem;    /* 17px — body copy, ledes */
+  --text-md--line-height: 1.65;
+  --text-lg: 1.25rem;      /* 20px — card titles */
+  --text-lg--line-height: 1.35;
+  --text-xl: 1.625rem;     /* 26px — section headings */
+  --text-xl--line-height: 1.2;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* The header is sticky at 68px and the section subnav adds ~45px. Without
+       this, every in-page anchor lands underneath them. */
+    scroll-padding-top: 120px;
+  }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+  }
+  /* Amber was invisible on the amber buttons and on the CTA band. Ink reads on
+     every light surface; the white ring underneath carries it on dark ones. */
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+  }
+  /* On dark sections the relationship inverts. */
+  .on-dark :focus-visible,
+  .bg-ink :focus-visible,
+  .bg-forest :focus-visible {
+    outline-color: #ffffff;
+    box-shadow: 0 0 0 5px rgba(7, 35, 26, 0.9);
+  }
+  ::selection {
+    background: var(--color-amber);
+    color: var(--color-ink);
+  }
+}
+
+@layer utilities {
+  .wrap {
+    width: min(1180px, 100% - 40px);
+    margin-inline: auto;
+  }
+  .h1 {
+    font-size: clamp(2.4rem, 5.4vw, 4.1rem);
+  }
+  .h2 {
+    font-size: clamp(1.8rem, 3.4vw, 2.65rem);
+  }
+  .h3 {
+    font-size: 1.15rem;
+    letter-spacing: -0.015em;
+  }
+  .grid-lines {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 100% 34px;
+  }
+
+  /* Mono uppercase was the primary UI voice — every label, pill, stat and
+     caption. It now has one job: an eyebrow above a heading. `.label` is the
+     replacement for everything else, in the body face at a readable weight. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  /* Tabular figures for anything a user compares down a column. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
