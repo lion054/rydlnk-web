@@ -4,6 +4,7 @@ import { Chip } from "@/components/ui";
 import { CorridorMap } from "@/components/corridor-map";
 import { getCorridors, getSession, getSites } from "@/lib/queries";
 import { CREDIT_VALUE } from "@/lib/data";
+import { ArchiveCorridorButton, TransportAdmin } from "./transport-admin";
 
 export const metadata = { title: "Corridors & sites" };
 
@@ -15,6 +16,7 @@ export default async function CorridorsPage() {
   const [corridors, sites] = await Promise.all([getCorridors(companyId), getSites(companyId)]);
 
   const exclusive = corridors.filter((c) => c.pooling === "exclusive");
+  const canAdminister = session.membership.role === "owner" || session.membership.role === "admin";
 
   /* What each exclusive corridor costs in seats nobody sits in. Derived from
      the live rows, so it moves when the policy does. */
@@ -32,6 +34,7 @@ export default async function CorridorsPage() {
       </TopBar>
 
       <div className="space-y-4 p-5 lg:p-7">
+        {canAdminister ? <TransportAdmin companyId={companyId} sites={sites.map((s) => ({ id: s.id, name: s.name }))} /> : null}
         <Panel title="Sites">
           {sites.length === 0 ? (
             <EmptyState
@@ -85,7 +88,8 @@ export default async function CorridorsPage() {
                     <th scope="col" className={`${th} text-right`}>Miles</th>
                     <th scope="col" className={`${th} text-right`}>Seat price</th>
                     <th scope="col" className={th}>You guarantee</th>
-                    <th scope="col" className={th}>Pooling</th>
+                  <th scope="col" className={th}>Pooling</th>
+                  {canAdminister ? <th scope="col" className={th}>Actions</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -100,6 +104,7 @@ export default async function CorridorsPage() {
                       <td className={td}>
                         <Chip tone={c.pooling === "exclusive" ? "warn" : "ok"}>{c.pooling}</Chip>
                       </td>
+                      {canAdminister ? <td className={td}><ArchiveCorridorButton companyId={companyId} corridorId={c.id} /></td> : null}
                     </tr>
                   ))}
                 </tbody>

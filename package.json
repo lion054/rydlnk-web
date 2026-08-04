@@ -5,16 +5,31 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "typecheck:scripts": "tsc -p scripts/tsconfig.json --noEmit false --outDir .email-build",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "email:build": "tsc -p scripts/tsconfig.json",
+    "email:preview": "npm run email:build && node .email-build/scripts/email-preview.js preview",
+    "email:templates": "npm run email:build && node .email-build/scripts/email-preview.js templates",
+    "check:functions": "node scripts/check-functions.js",
+    "verify:production": "./scripts/verify-production.sh",
+    "check": "npm run typecheck && npm run typecheck:scripts && npm run check:functions && npm run build && npm run test:e2e"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.69.0",
+    "@stripe/react-stripe-js": "^6.8.0",
+    "@stripe/stripe-js": "^9.12.1",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.9",
     "next": "15.5.22",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^20.17.0",
     "@types/react": "^19.0.0",

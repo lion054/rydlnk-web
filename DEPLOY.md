@@ -27,7 +27,12 @@ Project → Settings → Environment Variables:
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://zpduvchwzoxkzfjuqlww.supabase.co` | all |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_…` | all |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_live_…` | production |
 | `NEXT_PUBLIC_SITE_URL` | `https://your-domain.com` | **production only** |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry project DSN | production |
+| `SENTRY_DSN` | Sentry project DSN | production |
+| `SENTRY_AUTH_TOKEN` | Source-map upload token | build only |
+| `SENTRY_ORG` / `SENTRY_PROJECT` | Sentry identifiers | build only |
 
 Leave `NEXT_PUBLIC_SITE_URL` unset on preview and development. The code falls
 back to `VERCEL_URL`, so a preview deployment emails sign-in links that point at
@@ -60,18 +65,50 @@ These live in the Flutter repo (`supabase/functions`) and deploy separately —
 Vercel does not host them.
 
 ```bash
+supabase link --project-ref zpduvchwzoxkzfjuqlww
+supabase db push
+
 supabase functions deploy company-topup
 supabase functions deploy hris-offboard --no-verify-jwt
 supabase functions deploy stripe-webhook --no-verify-jwt
 supabase functions deploy charge-weekly
+supabase functions deploy send-company-invite
+supabase functions deploy stripe-setup-intent
+supabase functions deploy send-push
+supabase functions deploy health --no-verify-jwt
+supabase functions deploy billing-notify --no-verify-jwt
+supabase functions deploy admin-refund-topup
+supabase functions deploy admin-set-user-status
 
 supabase secrets set STRIPE_SECRET_KEY=sk_… STRIPE_WEBHOOK_SECRET=whsec_…
-supabase secrets set HRIS_WEBHOOK_SECRET=… SITE_ORIGIN=https://your-domain.com
+supabase secrets set HRIS_WEBHOOK_SECRET=… SITE_ORIGIN=https://your-domain.com BILLING_CURRENCY=usd
+supabase secrets set RESEND_API_KEY=re_… INVITE_FROM_EMAIL="Rydlnk <rides@your-domain.com>"
+supabase secrets set HEALTH_CHECK_SECRET=…
+supabase secrets set BILLING_NOTIFY_SECRET=…
+supabase secrets set FCM_PROJECT_ID=… FCM_ACCESS_TOKEN=…
 ```
 
 Then add the `stripe-webhook` function URL as an endpoint in the Stripe
 dashboard, subscribed to `setup_intent.succeeded`, `payment_intent.succeeded`,
-`payment_intent.payment_failed` and `payment_intent.processing`.
+`payment_intent.payment_failed` and `payment_intent.processing`. Apply migration
+`017_stripe_invoices.sql` before deploying the updated webhook; it provides the
+durable event-delivery ledger used for idempotency and retries.
+
+Supabase automatically supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` to Edge Functions; do not manually copy them into
+the repository. Use `pk_test_…` and `sk_test_…` in staging. Do not place
+`sk_…`, `whsec_…`, email, health, or service-role secrets in Vercel or any
+`NEXT_PUBLIC_` variable.
+
+## Production assurance
+
+Apply migrations through `026_notification_ledger.sql`, deploy the private
+`health` function, and connect it to an uptime monitor using the
+`x-health-secret` header. Run
+`supabase test db` and the browser suite before every production promotion.
+Operational procedures live in `docs/PRODUCTION_RUNBOOK.md`.
+Super-admin bootstrap and financial-control rules live in
+`docs/SUPER_ADMIN.md`.
 
 ## Before it is genuinely public
 

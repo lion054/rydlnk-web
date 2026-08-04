@@ -38,15 +38,10 @@ export async function decideApproval(
   decision: "approved" | "declined",
 ): Promise<Result> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Not signed in." };
-
-  const { error } = await supabase
-    .from("approvals")
-    .update({ status: decision, decided_by: user.id, decided_at: new Date().toISOString() })
-    .eq("id", approvalId);
+  const { error } = await supabase.rpc("decide_company_approval", {
+    p_approval: approvalId,
+    p_decision: decision,
+  });
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/portal", "layout");
@@ -64,12 +59,14 @@ export async function inviteMember(
   department: string | null,
 ): Promise<Result & { link?: string }> {
   const supabase = await createClient();
-  const { data: token, error } = await supabase.rpc("invite_to_company", {
-    p_company: companyId,
-    p_email: email,
-    p_role: role,
-    p_department: department,
-    p_employee_no: null,
+  const { data, error } = await supabase.functions.invoke("send-company-invite", {
+    body: {
+      company_id: companyId,
+      email,
+      role,
+      department,
+      employee_no: null,
+    },
   });
 
   if (error) return { ok: false, error: error.message };
@@ -80,8 +77,14 @@ export async function inviteMember(
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const base = `${proto}://${host}`;
+  const link = data?.link ?? (data?.token ? `${base}/invite/${data.token}` : undefined);
+  if (!link) return { ok: false, error: data?.error ?? "Invite delivery failed." };
   revalidatePath("/portal/people");
-  return { ok: true, message: `Invite created for ${email}.`, link: `${base}/invite/${token}` };
+  return {
+    ok: true,
+    message: data?.delivered ? `Invite emailed to ${email}.` : `Invite created for ${email}; copy the link to deliver it.`,
+    link,
+  };
 }
 
 export async function removeMember(companyId: string, userId: string): Promise<Result> {
@@ -95,34 +98,75 @@ export async function removeMember(companyId: string, userId: string): Promise<R
   return { ok: true, message: "Removed. Unspent credits returned to the float." };
 }
 
+export async function saveCompanySite(input: {
+  companyId: string;
+  siteId?: string;
+  name: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+  primary: boolean;
+}): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("upsert_company_site", {
+    p_company: input.companyId,
+    p_site: input.siteId ?? null,
+    p_name: input.name,
+    p_address: input.address,
+    p_lat: input.lat ?? null,
+    p_lng: input.lng ?? null,
+    p_primary: input.primary,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/portal/corridors");
+  return { ok: true, message: "Site saved." };
+}
+
+export async function saveCompanyCorridor(input: {
+  companyId: string;
+  corridorId?: string;
+  siteId?: string;
+  name: string;
+  destination: string;
+  miles?: number;
+  seatCredits: number;
+  pooling: "open" | "approved" | "exclusive";
+  guaranteedSeats: number;
+  seatsPerVehicle: number;
+}): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("upsert_company_corridor", {
+    p_company: input.companyId,
+    p_corridor: input.corridorId ?? null,
+    p_site: input.siteId ?? null,
+    p_name: input.name,
+    p_destination: input.destination,
+    p_miles: input.miles ?? null,
+    p_seat_credits: input.seatCredits,
+    p_pooling: input.pooling,
+    p_guaranteed_seats: input.guaranteedSeats,
+    p_seats_per_vehicle: input.seatsPerVehicle,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/portal/corridors");
+  return { ok: true, message: "Corridor saved." };
+}
+
+export async function archiveCompanyCorridor(companyId: string, corridorId: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("archive_company_corridor", {
+    p_company: companyId,
+    p_corridor: corridorId,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/portal/corridors");
+  return { ok: true, message: "Corridor archived." };
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
-}
-
-/**
- * Fund the float.
- *
- * Posts a `topup` ledger entry and a matching `float_topups` row. There is no
- * Stripe charge yet — the row is marked so, and the UI says so, because a
- * balance that appears without money moving is exactly the kind of thing that
- * has to be obvious rather than discovered at reconciliation.
- */
-export async function topUpFloat(companyId: string, credits: number): Promise<Result> {
-  if (!Number.isFinite(credits) || credits <= 0) return { ok: false, error: "Enter a positive amount." };
-
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("topup_float", {
-    p_company: companyId,
-    p_credits: Math.round(credits),
-    p_stripe_pi: null,
-    p_auto: false,
-  });
-
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/portal", "layout");
-  return { ok: true, message: `Added ${credits.toLocaleString()} credits to the float.` };
 }
 
 export type ImportRow = {
@@ -171,14 +215,16 @@ export async function importRoster(companyId: string, rows: ImportRow[]): Promis
   const failures: string[] = [];
 
   for (const row of rows) {
-    const { error } = await supabase.rpc("invite_to_company", {
-      p_company: companyId,
-      p_email: row.email.trim().toLowerCase(),
-      p_role: roles.has(row.role ?? "") ? row.role : "viewer",
-      p_department: row.department?.trim() || null,
-      p_employee_no: row.employee_no?.trim() || null,
+    const { data, error } = await supabase.functions.invoke("send-company-invite", {
+      body: {
+        company_id: companyId,
+        email: row.email.trim().toLowerCase(),
+        role: roles.has(row.role ?? "") ? row.role : "viewer",
+        department: row.department?.trim() || null,
+        employee_no: row.employee_no?.trim() || null,
+      },
     });
-    if (error) failures.push(`${row.email}: ${error.message}`);
+    if (error || data?.error) failures.push(`${row.email}: ${data?.error ?? error?.message}`);
     else created++;
   }
 
@@ -189,4 +235,73 @@ export async function importRoster(companyId: string, rows: ImportRow[]): Promis
   }
   const tail = failures.length ? ` ${failures.length} row(s) failed.` : "";
   return { ok: true, message: `Created ${created} invite${created === 1 ? "" : "s"}.${tail}` };
+}
+
+/* ── Employee shifts ────────────────────────────────────────────────────────
+ *
+ * A shift is an ordinary `schedules` row that the employer authored rather than
+ * the rider. Rides generate from it exactly as they do for a rider-created
+ * schedule, so `rides_autofund` funds each seat through the normal path — see
+ * migration 028. Nothing about the money changes; only who created the row.
+ */
+
+export type ShiftInput = {
+  companyId: string;
+  riderId: string;
+  title: string;
+  pickup: string;
+  dropoff: string;
+  /** "HH:MM" — at least one of these two is required by the form. */
+  pickupAfter: string | null;
+  arriveBy: string | null;
+  /** 0 = Sunday … 6 = Saturday, matching Postgres `extract(dow)`. */
+  days: number[];
+  startDate: string;
+  endDate: string | null;
+  returnRide: boolean;
+  /** Dollars, as typed. Converted to cents here so the RPC only sees integers. */
+  fareEstimate: number;
+};
+
+export async function createShift(input: ShiftInput): Promise<Result & { rides?: number }> {
+  if (!input.days.length) return { ok: false, error: "Pick at least one day." };
+  if (!input.pickupAfter && !input.arriveBy) {
+    return { ok: false, error: "Set a pickup time or an arrive-by time." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_company_shift", {
+    p_company: input.companyId,
+    p_rider: input.riderId,
+    p_title: input.title.trim() || null,
+    p_pickup: input.pickup.trim(),
+    p_dropoff: input.dropoff.trim(),
+    p_pickup_after: input.pickupAfter,
+    p_arrive_by: input.arriveBy,
+    p_days: input.days,
+    p_start: input.startDate,
+    p_end: input.endDate,
+    p_return_ride: input.returnRide,
+    p_recurring: true,
+    // Math.round, not truncation: 3.205 must not silently become 320 cents.
+    p_price_cents: Math.round((input.fareEstimate || 0) * 100),
+  });
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/portal/schedules");
+  revalidatePath("/portal/trips");
+  return { ok: true, message: "Shift scheduled. Rides are generated three weeks ahead.", rides: data };
+}
+
+export async function cancelShift(companyId: string, scheduleId: string): Promise<Result> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("cancel_company_shift", {
+    p_company: companyId,
+    p_schedule: scheduleId,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/portal/schedules");
+  revalidatePath("/portal/trips");
+  const n = typeof data === "number" ? data : 0;
+  return { ok: true, message: `Shift cancelled. ${n} upcoming ride${n === 1 ? "" : "s"} released.` };
 }

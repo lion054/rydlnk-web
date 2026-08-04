@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { WEEKS_PER_MONTH } from "@/lib/data";
+import { CORRIDOR_FARES, WEEKS_PER_MONTH } from "@/lib/data";
 
-const routes = [
-  { name: "Spanish Fork → East Bay", miles: 24, seat: 3.2, solo: 11.5 },
-  { name: "Payson → CBD", miles: 19, seat: 2.8, solo: 9.4 },
-  { name: "Orem → East Bay", miles: 16, seat: 2.4, solo: 8.2 },
-  { name: "Lehi → CBD", miles: 12, seat: 2.0, solo: 6.8 },
-];
+/* Fares come from lib/data.ts, not from a table here. The `solo` figures are
+   Lyft-derived and drive the "% cheaper" claim, so they belong with the other
+   shared rate constants where a change is visible to anyone auditing the claim
+   — not inlined in one component where the pricing page and this calculator can
+   silently disagree. */
+const routes = CORRIDOR_FARES;
 
 export function FareCalculator() {
   const [route, setRoute] = useState(0);
@@ -106,8 +106,14 @@ export function FareCalculator() {
           </p>
         </div>
       </div>
+      {/* The savings figure above is a comparative claim, so the basis for it
+          has to travel with it. Described by category rather than by brand:
+          naming a specific operator raises trademark and comparative-advertising
+          questions that are a decision for counsel, not a default. */}
       <p className="border-t border-line bg-paper/60 px-6 py-3 font-mono text-[0.66rem] text-muted">
         Indicative fares for the Utah County corridors currently running. Your employer can cover some or all of this.
+        &ldquo;Booking alone&rdquo; is the fare for the same trip as a single rider on a typical on-demand ride-hail
+        service, before surge pricing.
       </p>
     </div>
   );

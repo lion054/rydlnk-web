@@ -1,0 +1,35 @@
+name: Billing notifications
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report candidates without sending"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger private billing notifier
+        env:
+          FUNCTION_URL: ${{ secrets.BILLING_NOTIFY_URL }}
+          BILLING_SECRET: ${{ secrets.BILLING_NOTIFY_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          test -n "$FUNCTION_URL"
+          test -n "$BILLING_SECRET"
+          suffix=""
+          if [ "$DRY_RUN" = "true" ]; then suffix="?dry=1"; fi
+          curl --fail-with-body --silent --show-error \
+            "$FUNCTION_URL$suffix" \
+            -H "x-billing-secret: $BILLING_SECRET" \
+            -H "accept: application/json"

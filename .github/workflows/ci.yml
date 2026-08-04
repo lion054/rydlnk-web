@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.CI_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.CI_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.CI_STRIPE_PUBLISHABLE_KEY }}
+      E2E_COMPANY_EMAIL: ${{ secrets.E2E_COMPANY_EMAIL }}
+      E2E_COMPANY_PASSWORD: ${{ secrets.E2E_COMPANY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run typecheck:scripts
+      - run: npm run check:functions
+      - run: npm run email:preview
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts
+
+      # The ONLY control that catches a new backend-only function left callable
+      # by anon. Migration 025 tried to make that fail closed via default
+      # privileges; that was verified ineffective on Supabase, so this test is
+      # load-bearing rather than belt-and-braces.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Database tests (pgTAP)
+        run: |
+          supabase start --exclude realtime,storage-api,imgproxy,studio
+          supabase test db
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --project=chromium
+        env:
+          CI: "true"

@@ -13,18 +13,30 @@ const display = Bricolage_Grotesque({
   display: "swap",
 });
 
+/* 300 was dropped: `font-light` has zero uses across src/, so it was a preloaded
+   font file that nothing could ever render. */
 const body = Public_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["400", "500", "600"],
   variable: "--font-body-loaded",
   display: "swap",
 });
 
+/* `preload: false` — the weights stay available, they just stop being fetched at
+   highest priority on every page.
+
+   All five font files were preloaded, and a preload competes with the LCP image
+   for the connection on exactly the pages where the mono face is never rendered:
+   it appears on the legal, drivers, security and admin pages, not in the
+   marketing hero. Without the preload hint the browser fetches it when the CSS
+   actually applies it, which on those pages is early enough, and on the homepage
+   is never. */
 const mono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-mono-loaded",
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {

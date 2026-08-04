@@ -6,6 +6,16 @@ out
 next-env.d.ts
 .env*.local
 
+# Supabase CLI scratch: link state, pooler URL, server versions. Machine-local.
+supabase/.temp/
+
+# Email tooling build artefacts. supabase/templates/ is NOT ignored — those are
+# generated but committed, because Supabase reads them at deploy time.
+.email-build/
+.email-preview/
+test-results/
+playwright-report/
+
 # ── mobile (Flutter) ──────────────────────────────────────────────────────────
 mobile/build/
 mobile/.dart_tool/

@@ -13,6 +13,7 @@ import { signOut } from "@/app/portal/actions";
 const icons: Record<string, (p: { size?: number; className?: string }) => React.ReactNode> = {
   Dashboard: Icon.Dashboard,
   Route: Icon.Route,
+  Calendar: Icon.Calendar,
   Check: Icon.Check,
   Clock: Icon.Clock,
   Users: Icon.Users,
@@ -58,7 +59,10 @@ export function Rail() {
             <p className="eyebrow hidden px-2.5 pb-1.5 pt-4 text-railmuted lg:block">{g.group}</p>
             {g.items.map((i) => {
               const active = pathname === i.href;
-              const Glyph = icons[i.icon];
+              // Keep a bad navigation configuration from taking down the
+              // entire authenticated portal. Calendar was previously omitted
+              // here, which made the schedules item render as <undefined />.
+              const Glyph = icons[i.icon] ?? Icon.Help;
               const badge = i.badgeKey ? badges[i.badgeKey] : 0;
               return (
                 <Link

@@ -29,6 +29,46 @@ export const CREDIT_VALUE = 1;
 export const WEEKS_PER_MONTH = 52 / 12;
 
 /**
+ * Per-corridor fares. The single source for every calculator.
+ *
+ * `seat` is what Rydlnk charges. `solo` is the single-rider ride-hail fare for
+ * the same trip, **derived from Lyft's Utah County pricing** — it is the basis
+ * for the "% cheaper than booking alone" figure the fare calculator prints, and
+ * it is the only competitor-derived number on the site.
+ *
+ * Kept as measured per-corridor values rather than collapsed into a
+ * base-plus-mileage formula on purpose. A least-squares fit over these four
+ * corridors gives roughly $2.00 + $0.393/mile (max residual 9c), but real
+ * ride-hail pricing also carries a per-minute component and surge, so a
+ * per-corridor quote survives contact with a specific route better than the
+ * linear model does. The fitted figures are recorded here only as a sanity
+ * check: if a future edit drifts far from them, something was mistyped.
+ *
+ * ── Before launch ──────────────────────────────────────────────────────────
+ * These need a dated substantiation record. A specific "N% cheaper" claim
+ * benchmarked against a named competitor is comparative advertising, and the
+ * FTC expects the comparison to be current, like-for-like and documented. Two
+ * things follow: re-quote these when Lyft's Utah rates move, and keep a note of
+ * when each was captured. Neither the basis nor a capture date is disclosed to
+ * the visitor today — see docs/PRICING_BASIS.md.
+ */
+export type CorridorFare = {
+  name: string;
+  miles: number;
+  /** Rydlnk seat fare, USD. Fixed — no surge, no time component. */
+  seat: number;
+  /** Comparable single-rider Lyft fare for the same corridor, USD. */
+  solo: number;
+};
+
+export const CORRIDOR_FARES: CorridorFare[] = [
+  { name: "Spanish Fork → East Bay", miles: 24, seat: 3.2, solo: 11.5 },
+  { name: "Payson → CBD", miles: 19, seat: 2.8, solo: 9.4 },
+  { name: "Orem → East Bay", miles: 16, seat: 2.4, solo: 8.2 },
+  { name: "Lehi → CBD", miles: 12, seat: 2.0, solo: 6.8 },
+];
+
+/**
  * IRS §132(f) qualified transportation fringe benefit, monthly cap per employee.
  * Employer-funded commuting up to this amount is excluded from the employee's
  * gross income and from payroll tax — the single strongest reason a US employer

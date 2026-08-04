@@ -17,5 +17,9 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // supabase/functions is Deno — remote URL imports and a Deno global that this
+  // config cannot resolve. scripts/ is Node with `.ts` import specifiers, which
+  // needs moduleResolution nodenext. Each is typechecked by its own config;
+  // see scripts/tsconfig.json and `npm run typecheck:scripts`.
+  "exclude": ["node_modules", "supabase/functions", "scripts", ".email-preview"]
 }

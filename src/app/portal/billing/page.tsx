@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { EmptyState, Kpi, Panel, TopBar, td, th } from "@/components/portal/chrome";
 import { Chip } from "@/components/ui";
 import * as Icon from "@/components/icons";
@@ -116,18 +117,18 @@ export default async function BillingPage() {
           )}
         </Panel>
 
-        <Panel title="Invoices">
+        <Panel title="Prepaid statements">
           {invoices.length === 0 ? (
             <EmptyState
-              title="No invoices yet."
-              body="One invoice per period, split by cost center — a pooled run generates one line per employer, never a shared one."
+              title="No statements yet."
+              body="Monthly statements reconcile settled seats against the prepaid float, split by cost center. They do not charge the company a second time."
             />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] text-base">
                 <thead>
                   <tr>
-                    <th scope="col" className={th}>Invoice</th>
+                    <th scope="col" className={th}>Statement</th>
                     <th scope="col" className={th}>Period</th>
                     <th scope="col" className={th}>Due</th>
                     <th scope="col" className={th}>Status</th>
@@ -137,7 +138,11 @@ export default async function BillingPage() {
                 <tbody>
                   {invoices.map((i) => (
                     <tr key={i.id} className="hover:bg-[#fafbfa]">
-                      <td className={`${td} nums font-semibold`}>{i.number ?? i.id.slice(0, 8)}</td>
+                      <td className={`${td} nums font-semibold`}>
+                        <Link className="text-signal underline underline-offset-4" href={`/portal/billing/invoices/${i.id}`}>
+                          {i.number ?? i.id.slice(0, 8)}
+                        </Link>
+                      </td>
                       <td className={`${td} nums text-muted`}>
                         {new Date(i.period_start).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                       </td>

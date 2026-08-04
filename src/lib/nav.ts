@@ -142,6 +142,7 @@ export const portalNav = [
     items: [
       { href: "/portal", label: "Overview", icon: "Dashboard" },
       { href: "/portal/trips", label: "Trips & manifests", icon: "Route" },
+      { href: "/portal/schedules", label: "Employee schedules", icon: "Calendar" },
       { href: "/portal/approvals", label: "Approvals", icon: "Check", badgeKey: "approvals" },
       { href: "/portal/corridors", label: "Corridors & roster", icon: "Clock" },
     ],

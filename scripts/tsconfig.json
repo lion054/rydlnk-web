@@ -1,0 +1,22 @@
+{
+  // Builds the email preview generator, which imports the shared renderer out
+  // of supabase/functions/_shared. Those files are written for Deno and so use
+  // explicit `.ts` import specifiers; rewriteRelativeImportExtensions turns
+  // those into `.js` on emit, which is what lets one set of source files serve
+  // both the Deno edge runtime and this Node script.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "types": ["node"],
+    "rootDir": "..",
+    "outDir": "../.email-build"
+  },
+  "include": ["email-preview.ts", "../supabase/functions/_shared/email.ts", "../supabase/functions/_shared/messages.ts"]
+}

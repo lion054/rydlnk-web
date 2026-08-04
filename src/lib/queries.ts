@@ -134,7 +134,7 @@ export async function getInvoices(companyId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("company_invoices")
-    .select("id, number, period_start, period_end, seat_credits, platform_cents, total_cents, status, due_at")
+    .select("id, number, period_start, period_end, seat_credits, platform_cents, total_cents, status, due_at, currency, document_kind")
     .eq("company_id", companyId)
     .order("period_start", { ascending: false });
   return data ?? [];
@@ -166,4 +166,52 @@ export async function getBenefitUsage(companyId: string) {
     .eq("company_id", companyId)
     .eq("period_month", first);
   return data ?? [];
+}
+
+export type CompanyScheduleRow = {
+  schedule_id: string;
+  rider_id: string;
+  rider_name: string | null;
+  employee_no: string | null;
+  department: string | null;
+  title: string | null;
+  destination: string;
+  pickup_after: string | null;
+  arrive_by: string | null;
+  days: number[];
+  start_date: string;
+  end_date: string | null;
+  return_ride: boolean;
+  recurring: boolean;
+  schedule_status: string;
+  upcoming_rides: number;
+  funded_rides: number;
+  held_credits: number;
+};
+
+export async function getCompanySchedules(companyId: string): Promise<CompanyScheduleRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("company_schedule_overview", { p_company: companyId });
+  return (data ?? []) as CompanyScheduleRow[];
+}
+
+export type ShiftCandidate = {
+  user_id: string;
+  email: string;
+  department: string | null;
+  role: string;
+};
+
+/**
+ * Active members, for the shift form's employee picker.
+ *
+ * Goes through company_shift_candidates() rather than selecting company_members
+ * directly because the picker needs the email, and auth.users is not reachable
+ * under RLS. The function re-checks that the caller is a member of the company
+ * it was asked about.
+ */
+export async function getShiftCandidates(companyId: string): Promise<ShiftCandidate[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("company_shift_candidates", { p_company: companyId });
+  return (data ?? []) as ShiftCandidate[];
 }

@@ -47,7 +47,33 @@ function lastWeek(): { start: string; end: string } {
   return { start: ymd(start), end: ymd(end) };
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  /**
+   * Shared-secret gate. This function creates Stripe PaymentIntents with
+   * `off_session: true, confirm: true` — it takes money from riders' saved cards
+   * the moment it is called.
+   *
+   * It previously took no `req` at all and relied entirely on `verify_jwt = true`
+   * in config.toml. That is not sufficient: a POST carrying only the publishable
+   * `apikey` header — the key that ships in the browser bundle — was accepted and
+   * returned 200, so anyone who viewed the site could trigger a billing run.
+   *
+   * Now authenticated the same way as `health` and `billing-notify`: an explicit
+   * header compared against a secret only the scheduler holds, checked inside the
+   * function where the behaviour is visible in the code rather than inferred from
+   * a gateway setting.
+   */
+  const expected = Deno.env.get('CHARGE_WEEKLY_SECRET');
+  const supplied = req.headers.get('x-charge-secret');
+  if (!expected || supplied !== expected) {
+    // Fail closed when unset: no secret must never mean no gate on a function
+    // that moves money.
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const { start, end } = lastWeek();
 
   const { data: rides, error } = await admin

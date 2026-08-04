@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Logo } from "@/components/site-header";
 import * as Icon from "@/components/icons";
 import { contact, stores, smsHref } from "@/lib/site";
-import { SEATS_PER_VEHICLE } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { AcceptInvite } from "./accept";
 
@@ -20,8 +20,8 @@ export const metadata: Metadata = {
  * path at all. This page resolves the token, shows who invited them and what
  * they've been given, and routes to the right store.
  *
- * The token is decorative here — a real build resolves it server-side to the
- * employer, the entitlement and the corridor, and 404s on an expired one.
+ * The raw token is resolved only by a SECURITY DEFINER function that returns a
+ * minimal preview. Expired, revoked and unknown tokens receive a 404.
  */
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -31,13 +31,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Stubbed resolution. Replace with a lookup keyed on the token.
-  const invite = {
-    company: "Wasatch Manufacturing",
-    entitlement: "40 credits a week",
-    corridor: "East Bay → Spanish Fork",
-    depart: "22:15",
-  };
+  const { data: previews, error } = await supabase.rpc("company_invite_preview", { p_token: token });
+  const invite = previews?.[0];
+  if (error || !invite) notFound();
 
   return (
     <main id="main" className="min-h-screen bg-shell">
@@ -49,18 +45,19 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <div>
           <p className="eyebrow text-signal">You&apos;ve been invited</p>
           <h1 className="mt-3 max-w-[18ch] font-display text-[clamp(2rem,4vw,3rem)] font-extrabold leading-[1.05] tracking-[-0.03em]">
-            {invite.company} is paying for your commute.
+            {invite.company_name} invited you to Rydlnk.
           </h1>
           <p className="mt-5 max-w-[52ch] text-md text-muted">
-            Your employer has set up a seat for you on the {invite.corridor} run. Get the app, verify your number,
-            and your credits are already there — nothing to claim, nothing to expense.
+            Accept with <span className="font-semibold text-ink">{invite.invited_email}</span> to join your
+            employer&apos;s transport programme. Any credits and schedule policy assigned by the company will
+            attach to that account.
           </p>
 
           <dl className="mt-8 grid gap-3 sm:grid-cols-3">
             {[
-              [invite.entitlement, "funded by your employer", Icon.Wallet],
-              [invite.depart, "departure, Mon–Thu", Icon.Clock],
-              [`${SEATS_PER_VEHICLE} seats`, "per vehicle, same group weekly", Icon.Users],
+              [invite.invited_role, "portal role", Icon.Users],
+              [invite.department ?? "Unassigned", "department", Icon.Wallet],
+              [new Date(invite.expires_at).toLocaleDateString(), "invite expires", Icon.Clock],
             ].map(([v, l, G]) => {
               const Glyph = G as typeof Icon.Wallet;
               return (

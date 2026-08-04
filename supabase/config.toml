@@ -1,0 +1,74 @@
+project_id = "rydlnk"
+
+# Public endpoints authenticate a Stripe signature or a private shared secret.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.hris-offboard]
+verify_jwt = false
+
+[functions.health]
+verify_jwt = false
+
+# Called by a scheduler, not a browser, so there is no user JWT to verify.
+# Authenticates on BILLING_NOTIFY_SECRET instead.
+[functions.billing-notify]
+verify_jwt = false
+
+# Called by Supabase Auth itself, which sends no user JWT. Authenticated by the
+# Standard Webhooks HMAC signature using SEND_EMAIL_HOOK_SECRET.
+[functions.auth-email]
+verify_jwt = false
+
+# Browser-called functions require a valid Supabase user JWT.
+[functions.company-topup]
+verify_jwt = true
+
+# Guarded by CHARGE_WEEKLY_SECRET inside the function, not by verify_jwt: a POST
+# carrying only the publishable apikey passed verify_jwt = true and ran a full
+# billing run. The header check is the control.
+[functions.charge-weekly]
+verify_jwt = false
+
+[functions.send-company-invite]
+verify_jwt = true
+
+[functions.admin-refund-topup]
+verify_jwt = true
+
+[functions.admin-set-user-status]
+verify_jwt = true
+
+[functions.stripe-setup-intent]
+verify_jwt = true
+
+[functions.send-push]
+verify_jwt = true
+
+
+# ── Auth email templates ─────────────────────────────────────────────────────
+#
+# Generated from supabase/functions/_shared/messages.ts — run
+# `npm run email:templates` after changing anything there, and commit the
+# result. Do not hand-edit the files in supabase/templates/.
+#
+# These apply to `supabase start` and to `supabase db push` on a linked project.
+# The hosted dashboard keeps its own copy under Authentication → Emails, which
+# is NOT updated by a deploy: paste the same files there, or the branded mail
+# only ever appears locally. docs/EMAIL.md covers it.
+
+[auth.email.template.magic_link]
+subject = "Your Rydlnk sign-in link"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.confirmation]
+subject = "Confirm your email to finish setting up Rydlnk"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Rydlnk password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new Rydlnk email address"
+content_path = "./supabase/templates/email-change.html"
